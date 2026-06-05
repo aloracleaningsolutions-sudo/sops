@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alora Ops</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+button{border:none;background:none;padding:0;margin:0;font-family:inherit;cursor:pointer;-webkit-appearance:none;appearance:none;outline:none}
+:root{
+  --bg:#F0F4F9;--surface:#fff;--surface2:#F7FAFD;
+  --border:#E2EAF4;--border2:#D0DFF0;
+  --blue:#3B9EE8;--blue-light:#EBF4FD;--blue-mid:#BDD9F5;--blue-dark:#1A6DB5;
+  --gold:#F2A840;--gold-light:#FFF8EE;
+  --green:#5DBF9A;--green-light:#EDFBF4;
+  --purple:#9B8FE0;--purple-light:#F2F0FD;
+  --red:#F07070;--red-light:#FEF0F0;
+  --text:#1A2535;--text2:#4A6080;--text3:#9AAFCA;
+}
+body{background:var(--bg);font-family:'Outfit',sans-serif;color:var(--text);min-height:100vh;font-size:14px}
+.app{max-width:480px;margin:0 auto;min-height:100vh}
+
+/* TOP BAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 18px 0;position:sticky;top:0;z-index:100}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.brand{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:.08em}
+.brand span{color:var(--blue)}
+.badges{display:flex;align-items:center;gap:8px}
+.date-badge{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);background:var(--surface2);border:.5px solid var(--border2);border-radius:20px;padding:4px 11px}
+.sync-badge{font-family:'DM Mono',monospace;font-size:10px;border-radius:20px;padding:3px 9px;white-space:nowrap}
+.sync-saving{color:var(--gold);background:var(--gold-light);border:.5px solid var(--gold)}
+.sync-saved{color:var(--green);background:var(--green-light);border:.5px solid var(--green)}
+.sync-error{color:var(--red);background:var(--red-light);border:.5px solid var(--red)}
+
+/* SCORE */
+.score-bar{display:flex;align-items:center;gap:12px;padding:10px 0 14px}
+.score-ring-wrap{position:relative;width:48px;height:48px;flex-shrink:0}
+.score-ring-wrap svg{transform:rotate(-90deg)}
+.score-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;color:var(--blue)}
+.score-info{flex:1}
+.score-label{font-size:13px;font-weight:600}
+.score-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);margin-top:1px}
+.score-streak{font-family:'DM Mono',monospace;font-size:11px;color:var(--gold);background:var(--gold-light);border-radius:20px;padding:3px 10px;white-space:nowrap}
+
+/* TABS */
+.tabs{display:flex;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:9px 14px;font-size:12px;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:'Outfit',sans-serif}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* BODY */
+.body{padding:16px 16px 80px}
+.panel{display:none}.panel.active{display:block}
+
+/* DAY STRIP */
+.day-strip{display:flex;gap:5px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px}
+.day-pill{flex-shrink:0;min-width:44px;text-align:center;padding:8px 4px 6px;border-radius:10px;font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);background:var(--surface);border:.5px solid var(--border);cursor:pointer;transition:all .15s;position:relative}
+.day-pill.active{background:var(--blue-light);border-color:var(--blue);color:var(--blue)}
+.day-pill.has-weekly::after{content:'W';position:absolute;top:3px;right:3px;font-size:7px;color:var(--green);font-weight:600;font-family:'DM Mono',monospace}
+.day-pill.has-monthly::after{content:'M';position:absolute;top:3px;right:3px;font-size:7px;color:var(--purple);font-weight:600;font-family:'DM Mono',monospace}
+.dn{display:block;font-size:15px;font-weight:600;margin-top:2px;font-family:'Outfit',sans-serif}
+
+/* ENGINE */
+.engine{background:var(--surface);border:.5px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden}
+.engine-header{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:.5px solid var(--border)}
+.engine-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.engine-title{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:.05em}
+.engine-right{margin-left:auto;display:flex;align-items:center;gap:7px}
+.engine-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3)}
+.mini-prog{width:50px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.mini-prog-fill{height:100%;border-radius:2px;transition:width .4s}
+.task-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:.5px solid var(--surface2);width:100%;text-align:left;-webkit-tap-highlight-color:transparent}
+.task-row:last-child{border-bottom:none}
+.task-row:active{background:var(--surface2)}
+.check{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;background:var(--surface)}
+.check.done{background:var(--blue-light);border-color:var(--blue)}
+.check.done::after{content:'';width:4px;height:7px;border:1.5px solid var(--blue);border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px);display:block}
+.check.wdone{background:var(--green-light);border-color:var(--green)}
+.check.wdone::after{content:'';width:4px;height:7px;border:1.5px solid var(--green);border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px);display:block}
+.check.mdone{background:var(--purple-light);border-color:var(--purple)}
+.check.mdone::after{content:'';width:4px;height:7px;border:1.5px solid var(--purple);border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px);display:block}
+.tlabel{flex:1;font-size:13px;color:var(--text)}
+.tlabel.done{color:var(--text3);text-decoration:line-through}
+.ttag{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3)}
+
+/* PERIOD DIVIDER */
+.pdiv{display:flex;align-items:center;gap:10px;margin:20px 0 12px}
+.pdiv-line{flex:1;height:.5px;background:var(--border)}
+.pdiv-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.pdiv-label.w{color:var(--green);background:var(--green-light);border:.5px solid var(--green)}
+.pdiv-label.m{color:var(--purple);background:var(--purple-light);border:.5px solid var(--purple)}
+
+/* EDIT */
+.edit-section{margin-bottom:20px}
+.edit-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.edit-title{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.05em}
+.edit-row{display:flex;align-items:center;gap:8px;background:var(--surface);border:.5px solid var(--border);border-radius:9px;padding:8px 12px;margin-bottom:6px}
+.edit-input{flex:1;border:none;outline:none;font-family:'Outfit',sans-serif;font-size:13px;color:var(--text);background:transparent}
+.del-btn{color:var(--border2);font-size:16px;cursor:pointer;transition:color .15s;line-height:1}
+.del-btn:hover{color:var(--red)}
+.add-btn{display:flex;align-items:center;gap:6px;width:100%;padding:9px 12px;background:var(--surface);border:.5px dashed var(--blue-mid);border-radius:9px;font-size:13px;color:var(--blue);cursor:pointer;font-family:'Outfit',sans-serif}
+.section-cap{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin:20px 0 8px 2px;font-weight:500}
+
+/* COMPLETION */
+.cal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-month{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em}
+.cal-nav-btn{width:30px;height:30px;border-radius:7px;border:.5px solid var(--border);background:var(--surface);color:var(--blue);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px}
+.cal-dl{text-align:center;font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);padding:3px 0}
+.cal-cell{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px;font-weight:500;background:var(--surface);border:.5px solid var(--border);color:var(--text3);cursor:pointer}
+.cal-cell.full{background:var(--blue-light);border-color:var(--blue);color:var(--blue)}
+.cal-cell.partial{background:var(--gold-light);border-color:var(--gold);color:#B87A20}
+.cal-cell.missed{background:var(--red-light);border-color:var(--red);color:#B04040}
+.cal-cell.today-c{border:2px solid var(--blue)}
+.cal-cell.faded{opacity:.25;pointer-events:none}
+.cal-dot{width:4px;height:4px;border-radius:50%;margin-top:1px}
+.stat-row{display:flex;gap:8px;margin-bottom:14px}
+.stat-card{flex:1;background:var(--surface);border:.5px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:30px;color:var(--blue);line-height:1}
+.stat-lbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:3px}
+.leg-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.leg-item{display:flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text3)}
+.leg-sw{width:11px;height:11px;border-radius:3px}
+
+/* HEATMAP */
+.hm-card{background:var(--surface);border:.5px solid var(--border);border-radius:12px;padding:14px 14px 16px;overflow:hidden}
+.hm-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.hm-title{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.05em}
+.hm-yr{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3)}
+.hm-months{position:relative;height:14px;margin-bottom:4px}
+.hm-ml{font-family:'DM Mono',monospace;font-size:9px;color:var(--text3);position:absolute;top:0}
+.hm-scroll{overflow-x:auto;padding-bottom:4px}
+.hm-scroll::-webkit-scrollbar{height:3px}
+.hm-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.hm-grid{display:flex;gap:2px}
+.hm-col{display:flex;flex-direction:column;gap:2px}
+.hm-cell{width:11px;height:11px;border-radius:2px;cursor:pointer}
+.hm-cell:hover{opacity:.7}
+.h0{background:#EFF4FA}.h1{background:#BDD9F5}.h2{background:#7DBCEE}.h3{background:#3B9EE8}.h4{background:#1A6DB5}
+.hm-leg{display:flex;align-items:center;gap:4px;margin-top:10px;justify-content:flex-end}
+.hm-ll{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3)}
+.hm-lc{width:11px;height:11px;border-radius:2px}
+
+/* POPUP */
+.overlay{display:none;position:fixed;inset:0;background:rgba(20,35,55,.45);z-index:300;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.popup{position:relative;background:var(--surface);border-radius:20px 20px 0 0;padding:20px 20px 36px;width:100%;max-width:480px;max-height:72vh;overflow-y:auto}
+.popup-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 16px}
+.popup-date{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:.06em;margin-bottom:4px}
+.popup-score{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:16px}
+.popup-eng-label{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px}
+.popup-task{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid var(--border)}
+.popup-task:last-child{border-bottom:none}
+.popup-check{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border2);flex-shrink:0}
+.popup-check.done{background:var(--blue-light);border-color:var(--blue)}
+.popup-check.done::after{content:'';display:block;width:3px;height:6px;border:1.5px solid var(--blue);border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px)}
+.popup-ttext{font-size:13px}
+.popup-ttext.done{color:var(--text3);text-decoration:line-through}
+.popup-close{position:absolute;top:18px;right:20px;font-size:22px;color:var(--text3);cursor:pointer;line-height:1}
+.notes-lbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 6px}
+.notes-area{width:100%;border:.5px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Outfit',sans-serif;font-size:13px;color:var(--text);resize:none;outline:none;background:var(--surface2);min-height:70px}
+.notes-area:focus{border-color:var(--blue-mid)}
+.save-note-btn{margin-top:8px;padding:8px 18px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;cursor:pointer}
+
+/* LOADING */
+.loading{display:flex;align-items:center;justify-content:center;height:100vh;font-family:'DM Mono',monospace;color:var(--text3);font-size:13px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="loading">Loading Alora Ops...</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="popup" id="popup">
+    <div class="popup-handle"></div>
+    <button class="popup-close" onclick="closePopup()">×</button>
+    <div class="popup-date" id="popup-date"></div>
+    <div class="popup-score" id="popup-score"></div>
+    <div id="popup-body"></div>
+    <div class="notes-lbl">Notes</div>
+    <textarea class="notes-area" id="popup-notes" placeholder="What happened today..."></textarea>
+    <button class="save-note-btn" onclick="saveNote()">Save note</button>
+  </div>
+</div>
+
+<script>
+// ── CONFIG — REPLACE THESE WITH YOUR SUPABASE KEYS ──
+const SUPABASE_URL = 'https://skftwngzecrbzoyfpotr.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrZnR3bmdsemVjcmJ6b3lmb3RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzkzMzAsImV4cCI6MjA5NjI1NTMzMH0.dDOLPpjQ8mEw_sn5B2nmwL2cryDi1_tYAvJCgr11aAQ'
+
+// ── INIT SUPABASE ──
+const { createClient } = supabase
+const db = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+// ── CONSTANTS ──
+const DAYS = ['SUN','MON','TUE','WED','THU','FRI','SAT']
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const today = new Date()
+
+// ── DEFAULT DATA ──
+const DEFAULTS = {
+  dailyEngines:[
+    {id:'outreach',title:'Outreach Engine',color:'#3B9EE8',tasks:[
+      {id:'o1',text:'Send 15 DMs to influencers for collab',tag:'×15'},
+      {id:'o2',text:'Send 5 collab pitches to real estate agents',tag:'×5'},
+      {id:'o3',text:'Follow up — past customers, emails, DMs'},
+      {id:'o4',text:'Promote on Nextdoor — 20 min'}
+    ]},
+    {id:'conversion',title:'Conversion Engine',color:'#F2A840',tasks:[
+      {id:'c1',text:'Call leads — customers, agents, PMs'},
+      {id:'c2',text:'Answer Google reviews'},
+      {id:'c3',text:'Send appreciation to returning customers'}
+    ]},
+    {id:'ops',title:'Ops Engine',color:'#5DBF9A',tasks:[
+      {id:'p1',text:'Assign cleaners for upcoming bookings'},
+      {id:'p2',text:'Check car supplies and inventory'},
+      {id:'p3',text:'Check quality + ask new customers for Google review'}
+    ]},
+    {id:'content',title:'Content Engine',color:'#9B8FE0',tasks:[
+      {id:'cn1',text:'Upload job site story or get photo from cleaner'},
+      {id:'cn2',text:'Engage on social — 30 likes, 10 comments'}
+    ]}
+  ],
+  weeklyTasks:[
+    {id:'w1',engine:'📣 Marketing',title:"Content planning for next week — ideas into Projects tab"},
+    {id:'w2',engine:'📣 Marketing',title:'Marketing report — ad spend, top content, key metrics, growth'},
+    {id:'w3',engine:'📣 Marketing',title:'Schedule 2 photos and 1 video to Google Business'},
+    {id:'w4',engine:'📣 Marketing',title:'Promote ads on Instagram and Facebook'},
+    {id:'w5',engine:'📣 Marketing',title:'Shoot content for the week'},
+    {id:'w6',engine:'📣 Marketing',title:'Promote ads on Google'},
+    {id:'w7',engine:'📣 Marketing',title:'Set promo codes for collabs'},
+    {id:'w8',engine:'💰 Finance',title:'Payout cleaners and contractors'},
+    {id:'w9',engine:'📦 Ops',title:'Check inventory and order — always stock for 20 cleanings'},
+    {id:'w10',engine:'📊 Review',title:"Track results — what worked, what didn't, double down"},
+    {id:'w11',engine:'📊 Review',title:"Follow up with people who haven't answered"}
+  ],
+  monthlyTasks:[
+    {id:'m1',engine:'💰 Finance',title:'Full monthly finances review'},
+    {id:'m2',engine:'⚖️ Legal',title:'Check legal docs — privacy policy, T&Cs, handbook, legal formation'},
+    {id:'m3',engine:'⚙️ Systems',title:'Review SOPs — faster and more efficient'},
+    {id:'m4',engine:'🤖 AI',title:'Update AI answers in Quo'}
+  ],
+  completions:{},
+  notes:{}
+}
+
+// ── STATE ──
+let D = null
+let viewDate = new Date(today)
+let activeTab = 'daily'
+let calMonth = today.getMonth()
+let calYear = today.getFullYear()
+let popupDate = null
+let saveTimer = null
+let syncEl = null
+
+// ── HELPERS ──
+function dk(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+function wk(d){ const m=new Date(d),dw=m.getDay(); m.setDate(m.getDate()-(dw===0?6:dw-1)); return 'week-'+dk(m) }
+function mk(d){ return `month-${d.getFullYear()}-${d.getMonth()+1}` }
+function isSat(d){ return d.getDay()===6 }
+function is30(d){ return d.getDate()===Math.min(30,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()) }
+
+// ── SUPABASE SAVE / LOAD ──
+async function loadFromDB(){
+  try {
+    const {data,error} = await db.from('alora_ops').select('*').eq('id','main').single()
+    if(error && error.code==='PGRST116') return null
+    if(error) throw error
+    return data?.payload || null
+  } catch(e){ console.error('Load error:',e); return null }
+}
+
+async function saveToDB(){
+  showSync('saving')
+  try {
+    const {error} = await db.from('alora_ops').upsert({id:'main',payload:D,updated_at:new Date().toISOString()},{onConflict:'id'})
+    if(error) throw error
+    showSync('saved')
+  } catch(e){
+    console.error('Save error:',e)
+    showSync('error')
+  }
+}
+
+function triggerSave(){
+  if(saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(saveToDB, 1500)
+}
+
+function showSync(state){
+  if(!syncEl) return
+  syncEl.textContent = state==='saving'?'syncing…':state==='saved'?'✓ saved':'✕ error'
+  syncEl.className = 'sync-badge sync-'+state
+  syncEl.style.display = 'inline-block'
+  if(state!=='saving') setTimeout(()=>{ syncEl.style.display='none' }, 2500)
+}
+
+// ── BOOT ──
+async function boot(){
+  const saved = await loadFromDB()
+  D = saved ? {...DEFAULTS,...saved,
+    dailyEngines: saved.dailyEngines||DEFAULTS.dailyEngines,
+    weeklyTasks: saved.weeklyTasks||DEFAULTS.weeklyTasks,
+    monthlyTasks: saved.monthlyTasks||DEFAULTS.monthlyTasks,
+    completions: saved.completions||{},
+    notes: saved.notes||{}
+  } : JSON.parse(JSON.stringify(DEFAULTS))
+  renderApp()
+}
+
+// ── RENDER APP SHELL ──
+function renderApp(){
+  const app = document.getElementById('app')
+  const ms=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="topbar-row">
+        <div class="brand">ALORA <span>OPS</span></div>
+        <div class="badges">
+          <span class="sync-badge" id="sync" style="display:none"></span>
+          <div class="date-badge">${DAYS[today.getDay()]} · ${ms[today.getMonth()]} ${today.getDate()}</div>
+        </div>
+      </div>
+      <div class="score-bar" id="score-bar">
+        <div class="score-ring-wrap">
+          <svg width="48" height="48" viewBox="0 0 48 48">
+            <circle fill="none" stroke="#E2EAF4" stroke-width="3.5" cx="24" cy="24" r="20"/>
+            <circle fill="none" stroke="#3B9EE8" stroke-width="3.5" stroke-linecap="round" cx="24" cy="24" r="20"
+              stroke-dasharray="125.6" stroke-dashoffset="125.6" id="score-ring" style="transition:stroke-dashoffset .6s"/>
+          </svg>
+          <div class="score-center" id="score-pct">0%</div>
+        </div>
+        <div class="score-info">
+          <div class="score-label" id="score-label">0 / 0 tasks</div>
+          <div class="score-sub" id="score-sub">Keep pushing — let's go</div>
+        </div>
+        <div class="score-streak" id="score-streak">🔥 0 days</div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('daily',this)">✓ Daily</div>
+        <div class="tab" onclick="switchTab('edit',this)">✎ Edit</div>
+        <div class="tab" onclick="switchTab('completion',this)">◈ Completion</div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="panel active" id="panel-daily"></div>
+      <div class="panel" id="panel-edit"></div>
+      <div class="panel" id="panel-completion"></div>
+    </div>
+  `
+  syncEl = document.getElementById('sync')
+  renderDaily()
+  updateScore()
+}
+
+// ── TABS ──
+function switchTab(name, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'))
+  el.classList.add('active')
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'))
+  document.getElementById('panel-'+name).classList.add('active')
+  document.getElementById('score-bar').style.display = name==='daily'?'flex':'none'
+  activeTab = name
+  if(name==='edit') renderEdit()
+  if(name==='completion') renderCompletion()
+}
+
+// ── SCORE ──
+function updateScore(){
+  const key=dk(viewDate), comp=D.completions[key]||{}
+  let total=0,done=0
+  D.dailyEngines.forEach(e=>e.tasks.forEach(t=>{total++;if(comp[t.id])done++}))
+  if(isSat(viewDate)){const w=wk(viewDate);D.weeklyTasks.forEach(t=>{total++;if(D.completions[w+'-'+t.id])done++})}
+  if(is30(viewDate)){const m=mk(viewDate);D.monthlyTasks.forEach(t=>{total++;if(D.completions[m+'-'+t.id])done++})}
+  const pct=total>0?Math.round(done/total*100):0
+  const circ=125.6
+  const ring=document.getElementById('score-ring')
+  if(ring) ring.style.strokeDashoffset=circ-(circ*pct/100)
+  const p=document.getElementById('score-pct'); if(p) p.textContent=pct+'%'
+  const l=document.getElementById('score-label'); if(l) l.textContent=`${done} / ${total} tasks done`
+  const msgs=["Keep pushing — let's go",'Building the habit 💪','More than halfway!','Almost there!','Perfect day! 🏆']
+  const s=document.getElementById('score-sub'); if(s) s.textContent=msgs[pct===100?4:pct>=75?3:pct>=50?2:pct>=25?1:0]
+  // streak
+  let streak=0; const sd=new Date(today)
+  while(streak<365){
+    const k=dk(sd),c=D.completions[k]||{}
+    const dd=D.dailyEngines.flatMap(e=>e.tasks).filter(t=>c[t.id]).length
+    if(dd===0&&k!==dk(today)) break
+    if(dd>0) streak++
+    sd.setDate(sd.getDate()-1)
+  }
+  const st=document.getElementById('score-streak'); if(st) st.textContent=`🔥 ${streak} day${streak!==1?'s':''}`
+}
+
+// ── DAILY ──
+function renderDaily(){
+  const key=dk(viewDate), comp=D.completions[key]||{}
+  const w=wk(viewDate), m=mk(viewDate)
+  let html=''
+
+  // Day strip
+  const mon=new Date(viewDate); const dw=mon.getDay(); mon.setDate(mon.getDate()-(dw===0?6:dw-1))
+  html+='<div class="day-strip">'
+  for(let i=0;i<7;i++){
+    const d=new Date(mon); d.setDate(mon.getDate()+i)
+    const active=dk(d)===dk(viewDate), sat=isSat(d), m30=is30(d)
+    html+=`<div class="day-pill${active?' active':''}${sat?' has-weekly':''}${m30?' has-monthly':''}" onclick="setDay(${d.getFullYear()},${d.getMonth()},${d.getDate()})">${DAYS[d.getDay()]}<span class="dn">${d.getDate()}</span></div>`
+  }
+  html+='</div>'
+
+  // Daily engines
+  D.dailyEngines.forEach(engine=>{
+    const done=engine.tasks.filter(t=>comp[t.id]).length, total=engine.tasks.length
+    html+=`<div class="engine">
+      <div class="engine-header">
+        <div class="engine-dot" style="background:${engine.color}"></div>
+        <div class="engine-title" style="color:${engine.color}">${engine.title}</div>
+        <div class="engine-right">
+          <span class="engine-count">${done}/${total}</span>
+          <div class="mini-prog"><div class="mini-prog-fill" style="background:${engine.color};width:${total>0?done/total*100:0}%"></div></div>
+        </div>
+      </div>`
+    engine.tasks.forEach(t=>{
+      html+=`<button class="task-row" onclick="toggleDaily('${key}','${t.id}')">
+        <div class="check${comp[t.id]?' done':''}"></div>
+        <span class="tlabel${comp[t.id]?' done':''}">${t.text}</span>
+        ${t.tag?`<span class="ttag">${t.tag}</span>`:''}
+      </button>`
+    })
+    html+='</div>'
+  })
+
+  // Weekly
+  if(isSat(viewDate)){
+    html+=`<div class="pdiv"><div class="pdiv-line"></div><div class="pdiv-label w">📋 Weekly Tasks</div><div class="pdiv-line"></div></div>`
+    const wEngines={}; D.weeklyTasks.forEach(t=>{if(!wEngines[t.engine])wEngines[t.engine]=[];wEngines[t.engine].push(t)})
+    Object.entries(wEngines).forEach(([eng,tasks])=>{
+      const done=tasks.filter(t=>D.completions[w+'-'+t.id]).length
+      html+=`<div class="engine">
+        <div class="engine-header">
+          <div class="engine-dot" style="background:#5DBF9A"></div>
+          <div class="engine-title" style="color:#5DBF9A">${eng}</div>
+          <div class="engine-right">
+            <span class="engine-count" style="color:#5DBF9A">${done}/${tasks.length}</span>
+            <div class="mini-prog"><div class="mini-prog-fill" style="background:#5DBF9A;width:${tasks.length>0?done/tasks.length*100:0}%"></div></div>
+          </div>
+        </div>`
+      tasks.forEach(t=>{
+        html+=`<button class="task-row" onclick="togglePeriod('${w+'-'+t.id}','w')">
+          <div class="check${D.completions[w+'-'+t.id]?' wdone':''}"></div>
+          <span class="tlabel${D.completions[w+'-'+t.id]?' done':''}">${t.title}</span>
+        </button>`
+      })
+      html+='</div>'
+    })
+  }
+
+  // Monthly
+  if(is30(viewDate)){
+    html+=`<div class="pdiv"><div class="pdiv-line"></div><div class="pdiv-label m">📅 Monthly Tasks</div><div class="pdiv-line"></div></div>`
+    const mEngines={}; D.monthlyTasks.forEach(t=>{if(!mEngines[t.engine])mEngines[t.engine]=[];mEngines[t.engine].push(t)})
+    Object.entries(mEngines).forEach(([eng,tasks])=>{
+      const done=tasks.filter(t=>D.completions[mk(viewDate)+'-'+t.id]).length
+      html+=`<div class="engine">
+        <div class="engine-header">
+          <div class="engine-dot" style="background:#9B8FE0"></div>
+          <div class="engine-title" style="color:#9B8FE0">${eng}</div>
+          <div class="engine-right">
+            <span class="engine-count" style="color:#9B8FE0">${done}/${tasks.length}</span>
+            <div class="mini-prog"><div class="mini-prog-fill" style="background:#9B8FE0;width:${tasks.length>0?done/tasks.length*100:0}%"></div></div>
+          </div>
+        </div>`
+      tasks.forEach(t=>{
+        html+=`<button class="task-row" onclick="togglePeriod('${mk(viewDate)+'-'+t.id}','m')">
+          <div class="check${D.completions[mk(viewDate)+'-'+t.id]?' mdone':''}"></div>
+          <span class="tlabel${D.completions[mk(viewDate)+'-'+t.id]?' done':''}">${t.title}</span>
+        </button>`
+      })
+      html+='</div>'
+    })
+  }
+
+  document.getElementById('panel-daily').innerHTML=html
+  updateScore()
+}
+
+function setDay(y,m,d){ viewDate=new Date(y,m,d); renderDaily() }
+
+function toggleDaily(key,id){
+  if(!D.completions[key]) D.completions[key]={}
+  D.completions[key][id]=!D.completions[key][id]
+  renderDaily(); triggerSave()
+}
+
+function togglePeriod(key){
+  D.completions[key]=!D.completions[key]
+  renderDaily(); triggerSave()
+}
+
+// ── EDIT ──
+function renderEdit(){
+  let html=''
+  html+=`<div class="section-cap" style="color:var(--blue)">— Daily Engines —</div>`
+  D.dailyEngines.forEach((engine,ei)=>{
+    html+=`<div class="edit-section">
+      <div class="edit-head">
+        <div class="engine-dot" style="background:${engine.color};width:8px;height:8px;border-radius:50%"></div>
+        <div class="edit-title" style="color:${engine.color}">${engine.title}</div>
+      </div>`
+    engine.tasks.forEach((t,ti)=>{
+      html+=`<div class="edit-row">
+        <span style="color:var(--border2);font-size:16px">⠿</span>
+        <input class="edit-input" value="${t.text.replace(/"/g,'&quot;')}" onblur="updateTask(${ei},${ti},this.value)">
+        <button class="del-btn" onclick="deleteTask(${ei},${ti})">✕</button>
+      </div>`
+    })
+    html+=`<button class="add-btn" onclick="addTask(${ei})">+ Add task</button></div>`
+  })
+
+  html+=`<div class="section-cap" style="color:var(--green)">— Weekly Tasks (every Saturday) —</div>`
+  D.weeklyTasks.forEach((t,ti)=>{
+    html+=`<div class="edit-row">
+      <span style="font-size:11px;color:var(--text3);white-space:nowrap;font-family:'DM Mono',monospace;min-width:90px">${t.engine}</span>
+      <input class="edit-input" value="${t.title.replace(/"/g,'&quot;')}" onblur="updateWeekly(${ti},this.value)">
+      <button class="del-btn" onclick="deleteWeekly(${ti})">✕</button>
+    </div>`
+  })
+  html+=`<button class="add-btn" style="border-color:var(--green);color:var(--green);margin-bottom:20px" onclick="addWeekly()">+ Add weekly task</button>`
+
+  html+=`<div class="section-cap" style="color:var(--purple)">— Monthly Tasks (every 30th) —</div>`
+  D.monthlyTasks.forEach((t,ti)=>{
+    html+=`<div class="edit-row">
+      <span style="font-size:11px;color:var(--text3);white-space:nowrap;font-family:'DM Mono',monospace;min-width:90px">${t.engine}</span>
+      <input class="edit-input" value="${t.title.replace(/"/g,'&quot;')}" onblur="updateMonthly(${ti},this.value)">
+      <button class="del-btn" onclick="deleteMonthly(${ti})">✕</button>
+    </div>`
+  })
+  html+=`<button class="add-btn" style="border-color:var(--purple);color:var(--purple)" onclick="addMonthly()">+ Add monthly task</button>`
+
+  document.getElementById('panel-edit').innerHTML=html
+}
+
+function updateTask(ei,ti,val){D.dailyEngines[ei].tasks[ti].text=val;triggerSave()}
+function deleteTask(ei,ti){D.dailyEngines[ei].tasks.splice(ti,1);renderEdit();renderDaily();triggerSave()}
+function addTask(ei){D.dailyEngines[ei].tasks.push({id:'t'+Date.now(),text:'New task'});renderEdit();renderDaily();triggerSave()}
+function updateWeekly(ti,val){D.weeklyTasks[ti].title=val;triggerSave()}
+function deleteWeekly(ti){D.weeklyTasks.splice(ti,1);renderEdit();triggerSave()}
+function addWeekly(){D.weeklyTasks.push({id:'w'+Date.now(),engine:'📋 New',title:'New weekly task'});renderEdit();triggerSave()}
+function updateMonthly(ti,val){D.monthlyTasks[ti].title=val;triggerSave()}
+function deleteMonthly(ti){D.monthlyTasks.splice(ti,1);renderEdit();triggerSave()}
+function addMonthly(){D.monthlyTasks.push({id:'m'+Date.now(),engine:'📅 New',title:'New monthly task'});renderEdit();triggerSave()}
+
+// ── COMPLETION ──
+function getDayStatus(d){
+  const key=dk(d),comp=D.completions[key]||{}
+  const allT=D.dailyEngines.flatMap(e=>e.tasks)
+  const done=allT.filter(t=>comp[t.id]).length
+  if(done===0) return 'none'
+  if(done===allT.length) return 'full'
+  return 'partial'
+}
+
+function renderCompletion(){
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate()
+  const first=new Date(calYear,calMonth,1)
+
+  // streak
+  let streak=0; const sd=new Date(today)
+  while(streak<365){const s=getDayStatus(sd);if(s==='none'&&dk(sd)!==dk(today))break;if(s!=='none')streak++;sd.setDate(sd.getDate()-1)}
+  let active=0; for(let i=1;i<=today.getDate();i++){if(getDayStatus(new Date(today.getFullYear(),today.getMonth(),i))!=='none')active++}
+  const comp=D.completions[dk(today)]||{}
+  const todayDone=D.dailyEngines.flatMap(e=>e.tasks).filter(t=>comp[t.id]).length
+
+  let html=`
+    <div class="cal-hdr">
+      <div class="cal-month">${MONTHS[calMonth]} ${calYear}</div>
+      <div style="display:flex;gap:7px">
+        <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+        <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+    <div class="cal-grid">
+      ${DAYS.map(d=>`<div class="cal-dl">${d[0]}</div>`).join('')}
+      ${Array(first.getDay()).fill('<div class="cal-cell faded"></div>').join('')}`
+
+  for(let d=1;d<=daysInMonth;d++){
+    const cd=new Date(calYear,calMonth,d)
+    const future=cd>today&&dk(cd)!==dk(today)
+    if(future){html+=`<div class="cal-cell faded">${d}</div>`;continue}
+    const status=getDayStatus(cd)
+    const isT=dk(cd)===dk(today)
+    const dotColor=status==='full'?'var(--blue)':status==='partial'?'var(--gold)':cd<today?'var(--red)':'transparent'
+    const cls=`cal-cell${status==='full'?' full':status==='partial'?' partial':cd<today?' missed':''}${isT?' today-c':''}`
+    html+=`<div class="${cls}" onclick="openPopup(${cd.getFullYear()},${cd.getMonth()},${cd.getDate()})">${d}<div class="cal-dot" style="background:${dotColor}"></div></div>`
+  }
+  html+='</div>'
+
+  html+=`<div class="stat-row">
+    <div class="stat-card"><div class="stat-num">${streak}</div><div class="stat-lbl">day streak</div></div>
+    <div class="stat-card"><div class="stat-num">${Math.round(active/today.getDate()*100)}%</div><div class="stat-lbl">this month</div></div>
+    <div class="stat-card"><div class="stat-num">${todayDone}</div><div class="stat-lbl">tasks today</div></div>
+  </div>
+  <div class="leg-row">
+    <div class="leg-item"><div class="leg-sw" style="background:var(--blue-light);border:.5px solid var(--blue)"></div>All done</div>
+    <div class="leg-item"><div class="leg-sw" style="background:var(--gold-light);border:.5px solid var(--gold)"></div>Partial</div>
+    <div class="leg-item"><div class="leg-sw" style="background:var(--red-light);border:.5px solid var(--red)"></div>Missed</div>
+  </div>`
+
+  // Heatmap
+  html+=`<div class="hm-card">
+    <div class="hm-top"><div class="hm-title">Task Activity — 2026</div><div class="hm-yr">365 days</div></div>
+    <div class="hm-months" id="hm-months"></div>
+    <div class="hm-scroll"><div class="hm-grid" id="hm-grid"></div></div>
+    <div class="hm-leg"><span class="hm-ll">Less</span>${[0,1,2,3,4].map(i=>`<div class="hm-lc h${i}"></div>`).join('')}<span class="hm-ll">More</span></div>
+  </div>`
+
+  document.getElementById('panel-completion').innerHTML=html
+  renderHeatmap()
+}
+
+function renderHeatmap(){
+  const grid=document.getElementById('hm-grid')
+  const mrow=document.getElementById('hm-months')
+  if(!grid||!mrow) return
+  const start=new Date(2026,0,1); start.setDate(start.getDate()-start.getDay())
+  const allT=D.dailyEngines.flatMap(e=>e.tasks), total=allT.length||1
+  const mpos={}
+  let gridHtml='', mHtml=''
+  for(let w=0;w<53;w++){
+    gridHtml+='<div class="hm-col">'
+    for(let d=0;d<7;d++){
+      const cd=new Date(start); cd.setDate(start.getDate()+w*7+d)
+      if(cd.getFullYear()!==2026){gridHtml+=`<div class="hm-cell h0" style="opacity:.15"></div>`;continue}
+      if(cd>today){gridHtml+=`<div class="hm-cell h0"></div>`;continue}
+      const k=dk(cd), comp=D.completions[k]||{}
+      const done=allT.filter(t=>comp[t.id]).length
+      const pct=done/total
+      const lvl=pct===0?0:pct<.25?1:pct<.5?2:pct<.75?3:4
+      if(cd.getDate()<=7&&!mpos[cd.getMonth()]) mpos[cd.getMonth()]=w
+      const isT=dk(cd)===dk(today)
+      gridHtml+=`<div class="hm-cell h${lvl}" title="${cd.toDateString()}: ${done}/${total}" style="${isT?'outline:1.5px solid var(--blue-dark);outline-offset:1px':''}" onclick="openPopup(${cd.getFullYear()},${cd.getMonth()},${cd.getDate()})"></div>`
+    }
+    gridHtml+='</div>'
+  }
+  Object.entries(mpos).forEach(([m,w])=>{ mHtml+=`<div class="hm-ml" style="left:${w*13}px">${MONTHS_SHORT[m]}</div>` })
+  grid.innerHTML=gridHtml; mrow.innerHTML=mHtml
+}
+
+function changeMonth(dir){
+  calMonth+=dir
+  if(calMonth>11){calMonth=0;calYear++}
+  if(calMonth<0){calMonth=11;calYear--}
+  renderCompletion()
+}
+
+// ── POPUP ──
+function openPopup(y,m,d){
+  const date=new Date(y,m,d); popupDate=date
+  const key=dk(date), comp=D.completions[key]||{}
+  const allT=D.dailyEngines.flatMap(e=>e.tasks)
+  const done=allT.filter(t=>comp[t.id]).length
+  document.getElementById('popup-date').textContent=date.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})
+  document.getElementById('popup-score').textContent=`${done} / ${allT.length} daily tasks`
+  let html=''
+  D.dailyEngines.forEach(engine=>{
+    html+=`<div class="popup-eng-label" style="color:${engine.color}">${engine.title}</div>`
+    engine.tasks.forEach(t=>{
+      html+=`<div class="popup-task"><div class="popup-check${comp[t.id]?' done':''}"></div><span class="popup-ttext${comp[t.id]?' done':''}">${t.text}</span></div>`
+    })
+  })
+  if(isSat(date)){
+    const w=wk(date)
+    html+=`<div class="popup-eng-label" style="color:var(--green)">📋 Weekly Tasks</div>`
+    D.weeklyTasks.forEach(t=>{
+      const ck=D.completions[w+'-'+t.id]
+      html+=`<div class="popup-task"><div class="popup-check${ck?' done':''}"></div><span class="popup-ttext${ck?' done':''}">${t.title}</span></div>`
+    })
+  }
+  if(is30(date)){
+    const mk2=mk(date)
+    html+=`<div class="popup-eng-label" style="color:var(--purple)">📅 Monthly Tasks</div>`
+    D.monthlyTasks.forEach(t=>{
+      const ck=D.completions[mk2+'-'+t.id]
+      html+=`<div class="popup-task"><div class="popup-check${ck?' done':''}"></div><span class="popup-ttext${ck?' done':''}">${t.title}</span></div>`
+    })
+  }
+  document.getElementById('popup-body').innerHTML=html
+  document.getElementById('popup-notes').value=D.notes[key]||''
+  document.getElementById('overlay').classList.add('open')
+}
+
+function closePopup(){ document.getElementById('overlay').classList.remove('open') }
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target===document.getElementById('overlay'))closePopup()})
+
+function saveNote(){
+  if(popupDate){
+    D.notes[dk(popupDate)]=document.getElementById('popup-notes').value
+    triggerSave(); closePopup()
+  }
+}
+
+// ── START ──
+boot()
+</script>
+</body>
+</html>
